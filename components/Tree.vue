@@ -14,10 +14,18 @@ onMounted(() => {
   scene.add(axesHelper)
 
   const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100)
+  camera.position.x = 7.5
+  camera.position.y = 10
   camera.position.z = 25
   const cameraFolder = pane.addFolder({ title: 'camera' })
-  cameraFolder.addInput(camera.position, 'z', { min: 1, max: 100 })
+  cameraFolder.addInput(camera.position, 'x', { min: 0, max: 100 })
+  cameraFolder.addInput(camera.position, 'y', { min: 0, max: 100 })
+  cameraFolder.addInput(camera.position, 'z', { min: 0, max: 100 })
 
+  const treeGroup = new THREE.Group()
+  scene.add(treeGroup)
+
+  const segments: THREE.Mesh<THREE.CylinderGeometry, THREE.MeshPhongMaterial>[] = []
   const axiom = 'F'
   let sentence = ''
   const rule = 'F[---F][---<<<<<<<<F][--->>>>>>>>F]'
@@ -25,8 +33,8 @@ onMounted(() => {
   const angle = 15
   let length = 10
   const lengthModifier = 0.7
-  let radius = 0.18
-  const radialModifier = 0.8
+  let radius = 0.3
+  const radialModifier = 0.7
   const color = [100, 85, 75]
 
   const createOrigin = () => {
@@ -60,7 +68,7 @@ onMounted(() => {
 
     origin.position.set(0, -14, 0)
 
-    scene.add(origin)
+    treeGroup.add(origin)
 
     let previousSegment: THREE.Mesh<THREE.SphereGeometry | THREE.CylinderGeometry, THREE.MeshBasicMaterial> = origin
     let previousLength = 0
@@ -68,6 +76,8 @@ onMounted(() => {
     for (let i = 0; i < sentence.length; i += 1) {
       if (sentence[i] === 'F') {
         const newSegment = segment(length, radius, angleX, angleY, angleZ, color, previousLength)
+        newSegment.scale.set(0, 0, 0)
+        segments.push(newSegment)
         previousSegment.add(newSegment)
         previousSegment = newSegment
         angleX = 0
@@ -167,8 +177,27 @@ onMounted(() => {
   const controls = new OrbitControls(camera, canvas.value)
   controls.enableDamping = true
   controls.enableZoom = false
+  controls.minPolarAngle = Math.PI / 3
+  controls.maxPolarAngle = Math.PI / 2
 
   const render = () => {
+    segments.forEach((segment) => {
+      if (segment.scale.x < 1) {
+        if (segment.scale.x < 0.999) {
+          const scaleFactor = 0.001
+          const segmentInfluence = segment.geometry.parameters.height * 0.8
+
+          segment.scale.x += scaleFactor * (segmentInfluence) * (1 - segment.scale.x)
+          segment.scale.y += scaleFactor * (segmentInfluence) * (1 - segment.scale.y)
+          segment.scale.z += scaleFactor * (segmentInfluence) * (1 - segment.scale.z)
+        } else {
+          segment.scale.set(1, 1, 1)
+        }
+      }
+    })
+
+    treeGroup.rotation.y -= 0.0015
+
     renderer.render(scene, camera)
 
     controls.update()
